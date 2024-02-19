@@ -1,0 +1,150 @@
+\section{提交订单}
+
+提交订单的逻辑整体上复用 Ukey 新购逻辑。
+
+\subsection{后台配置}
+
+\paragraph*{申请主体}
+
+控制可进行 Ukey 变更的主体，包括内外部单位，内外部个人。如果前台登陆的用户不满足主体筛选条件，则不展示 Ukey 变更入口。前台 Ukey 变更入口(侧边栏菜单)由后台接口控制。
+
+\paragraph*{通道选择}
+
+标准包仅支持契约锁通道，该配置项主要用于项目定制化需求。
+
+\paragraph*{支付方式}
+
+Ukey 变更配置项相比 Ukey 新购少一个烧制方式，配置完支付方式后自动选择对应的烧制方式。主要支付方式的影响如表\ref{table:支付方式配置项}:
+
+\begin{table}[H]
+  \small
+  \centering
+  \caption{支付方式配置项}
+  \label{table:支付方式配置项}
+  \setlength{\tabcolsep}{4mm}
+  \begin{tabular}{c|cc}
+    \toprule
+    \textbf{支付方式} & \textbf{含义} & \textbf{烧制方式} \\
+    \midrule
+    支付给平台方 & 私有化费用分摊，走私有云烧制流程 & 平台方烧制/用户自主烧制 \\
+    支付给契约锁 & 契约锁收费，走公有云烧制流程 & 契约锁客服烧制 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+此外，还可能出现\textbf{不支付}选项，这代表私有云系统启用了费用分摊功能，但没有配置相关的规则，此时仍然走私有云烧制流程。
+
+\paragraph*{可用证书}
+
+可用证书包括可用 RSA 证书与可用 SM2 证书，该配置项会出现三种情形:
+\begin{itemize}
+    \item 无可用 RSA/SM2 证书: 自建通道禁止某一项，则只给我文本提示: 当前自建通道无法申请当前算法长期证书
+    \item 有特定的 RSA/SM2 证书范围: 通过多选组件选择可用的 CA 机构
+    \item 能开启 RSA/SM2 证书: 通过开关控制能否启用 RSA/SM2 证书
+\end{itemize}
+
+\paragraph*{可选年限}
+
+可选年限包括一年期与两年期，可以选择一个或所有。如果都不选，那么前台不会展示 Ukey 变更入口。
+
+\paragraph*{是否需要烧制章面}
+
+该配置项有三个单选项: 需要章面，无需章面，由用户自主选择。前两个选项会强制用户制作/不制作章面。
+
+上述的所有配置会在用户提交订单时生成一份快照，即以用户提交时的配置为准。如果后续更改了配置，不影响先前已提交的订单。
+
+\subsection{Ukey 变更入口}
+
+Ukey 变更前台界面的路由为: \texttt{/cert-apply?orderType=UKEY\_CHANGE}。所有 Ukey 变更入口都通过改变路由进入变更界面。目前主要有以下几类入口:
+\begin{itemize}
+    \item 常规申请: 前台证书界面，点击证书服务的 Ukey 变更按钮
+    \item 跳转申请: 首页，个人中心，合同签署等界面跳转至 Ukey 变更界面
+    \item 开放平台: 开放平台生成路由链接跳转至 Ukey 变更界面
+\end{itemize}
+
+常规申请是最常见的 Ukey 变更订单申请方式，进入变更界面后，系统将获取后台配置并提供各字段的选项。
+
+跳转申请会根据来源不同对部分字段作限制，需要限制的字段会出现在路由上，例如通过 \texttt{userCenterSigAlgType} 选中默认算法，通过 \texttt{renew} 知道来自个人中心，需要进行相关的初始化操作。
+
+开放平台申请的链接在路由上会有 \texttt{viewToken} 字段，进入界面后，系统会根据 \texttt{viewToken} 查询相关配置，并对订单信息做一定限制。
+
+三类入口填写证书信息获取配置与进行限制的逻辑如图\ref{fig:提交订单入口配置逻辑}:
+\begin{figure}[H]
+  \small
+  \centering
+  \begin{tikzpicture}[font=\small, align=center]
+    \node(common) at (0,1) {常规申请};
+    \node(jump) at (0,0) {跳转申请};
+    \node(app) at (0,-1) {开放平台};
+    \node(commit) at (12,1) {填写信息};
+    \node(oss) at (9,1) {获取信息配置};
+    \node(url) at (6,0) {路由参数限制};
+    \node(viewToken) at (3,-1) {viewToken限制};
+    \draw [-Stealth] (common) -- (oss);
+    \draw [-Stealth] (jump) -- (url);
+    \draw [-Stealth] (url) -| (oss);
+    \draw [-Stealth] (app) -- (viewToken);
+    \draw [-Stealth] (viewToken) -| (url);
+    \draw [-Stealth] (url) -| (oss);
+    \draw [-Stealth] (oss) -- (commit);
+  \end{tikzpicture}
+  \caption{提交订单入口配置逻辑}
+  \label{fig:提交订单入口配置逻辑}
+\end{figure}
+
+\subsection{Ukey 信息填写}
+
+\subsubsection{指定需要变更的 Ukey}
+
+目前支持两种指定 Ukey 的方式：选择Ukey与插入Ukey。H5 仅支持选择 Ukey。
+
+\paragraph*{选择Ukey} 
+
+系统将返回\textbf{当前私有化系统}中用户身份所管理的\textbf{订单的Ukey}列表，如果Ukey存在变更中的订单，则置灰不允许选中，否则可以选中。选中后点击详情可获得Ukey相关的信息。
+
+\paragraph*{插入Ukey} 用户插入一个契约锁颁发的 Ukey，系统将自动识别并获取其相关信息。在插入 Ukey 模式下，即使是\textbf{非当前私有化系统}的 Ukey 也可进行变更。非当前私有化系统的 Ukey 无法通过接口获取完整的信息，因此 Ukey 信息会出现显示不全的情形。
+
+\subsubsection{其他信息填写}
+
+其他信息与 Ukey 新购基本一致，Ukey 变更包含两部分信息: 新证书信息与章面信息(如果禁止制章则不存在章面信息)。
+
+用户在选择单位/个人时，列表会给出认证状态，如果主体未认证，则需完成认证流程。如果选中的主体与当前使用的身份不符，则会通知对方授权，授权后继续支付流程。
+
+用户在填写完基本信息后，界面右上角会显示 Ukey 变更的价格，点击提交订单即可。
+
+如果变更的 Ukey 在当前私有化系统中存在章面信息，提交订单后会给出相关提示。
+
+\subsection*{详细逻辑图}
+
+提交 Ukey 变更订单的详细逻辑如图\ref{fig:提交订单详细逻辑}所示:
+
+\begin{figure}[H]
+    \small
+    \centering
+    \begin{tikzpicture}[font=\small, align=center]
+      \node [color=gray, font=\footnotesize] (oss1) at (1.5,1.25) {后台控制};
+      \node (app) at (0,0) {前台申请};
+      \node (limit) at (3,0) {入口\\\footnotesize{(限制逻辑)}};
+      \node [font=\footnotesize] (jump) at (2,-1.5) {跳转申请};
+      \node [font=\footnotesize] (open) at (4,-1.5) {开放平台};
+      \node [font=\footnotesize] (select) at (6.5,0.75) {选择Ukey\\\scriptsize{(仅当前系统Ukey)}};
+      \node [font=\footnotesize] (insert) at (6.5,-0.75) {插入Ukey\\\scriptsize{(任意契约锁Ukey)}};
+      \node [color=gray, font=\footnotesize] (oss2) at (10,1.25) {后台配置};
+      \node (info) at (10,0) {填写信息};
+      \node (commit) at (13,0) {提交订单};
+      \draw [-Stealth] (app) -- (limit) node [midway, below, font=\scriptsize] {是否显示};
+      \draw [dashed, color=gray] (oss1) -- (1.5, 0);
+      \draw (jump) -- (limit);
+      \draw (open) -- (limit);
+      \draw [-Stealth] (limit) -- ++(1.5,0) -- (select);
+      \draw [-Stealth] (limit) -- ++(1.5,0) -- (insert);
+      \draw [-Stealth] (select) -- ++(1.75,-0.75) -- (info);
+      \draw [-Stealth] (insert) -- ++(1.75,0.75) -- (info);
+      \draw [dashed, color=gray] (oss2) -- (info);
+      \draw [-Stealth] (info) -- (commit) node [midway, below, font=\scriptsize] {确认变更};
+    \end{tikzpicture}
+    \caption{提交订单详细逻辑}
+    \label{fig:提交订单详细逻辑}
+\end{figure}
+
+\newpage

@@ -1,0 +1,150 @@
+\section{平台方烧制}
+
+私有化开启费用分摊功能，Ukey变更选择平台方支付，在付费后进入烧制流程。此时前台和后台均可烧制 Ukey。
+
+烧制过程是部分可中断的，如果弹窗/提示框存在取消或关闭按钮，用户可自行中断当前步骤，但如果不存在关闭按钮，请不要中断正在执行中的任务，不要关闭浏览器页面或操作系统，否则可能产生不必要的麻烦。
+
+\subsection{证书申请}
+
+走到烧制流程后，进入订单详情界面，会显示待烧入 Ukey 的证书基本信息以及\textbf{申请证书}按钮。点击按钮会依次检测驱动状态，检查 Ukey 是否为变更订单中指定的 Ukey。如果均满足条件则显示烧制弹窗，等待用户确认信息，并填写新 Ukey Pin 码。
+
+\subsubsection{清空 Ukey}
+
+确认新 Pin 码后，系统给出\textit{正在向CA机构申请证书}弹窗，并清空插入的 Ukey，前端首先调用驱动的以下两个方法:
+
+\begin{JavaScript}
+ukeySocket.clearUkey();
+ukeySocket.changePin({ NewPIN: pin, OldPIN: '12345678' });
+\end{JavaScript}
+
+这两个方法分别清空 Ukey，设置新的 Pin 码。在驱动的两个方法调用结束后，再次调用后端的 Ukey 初始化方法:
+
+\begin{JavaScript}
+// 接口路径: /cert/order/ukey/init
+Apis.CertApply.ukeyInit(orderDetail.certOrder.id, ukeySocket.deviceId);
+\end{JavaScript}
+
+此时 Ukey 完成初始化操作。注意，在此过程中弹窗并不会给出关闭按钮，因此不允许中断清空 Ukey 过程，如果此时过程被中断，可能会出现 Ukey 已被初始化，但后端没有记录等问题。
+
+\subsubsection{申请证书}
+
+清空 Ukey 后，系统自动进入申请证书流程，此时弹出\textit{正在向CA机构申请证书}弹窗，同时根据所申请的证书算法类型不同，分别调用驱动的获取 P10 方法:
+
+\begin{JavaScript}
+// RSA 算法，对应 C++ 方法: requestRSAP10 
+ukeySocket.getRSAP10({ name: certDetail.tenantName, docId: certDetail.docId })
+// SM2 算法，对应 C++ 方法: requestP10
+ukeySocket.getSM2P10({ name: certDetail.tenantName, organizationUnit: certDetail.docId })
+\end{JavaScript}
+
+获取 P10 信息后，调用后端的申请证书方法:
+
+\begin{JavaScript}
+// 接口路径: /cert/order/ukey/applycert
+Apis.CertApply.ukeyApplyCert({
+    orderId: orderDetail.certOrder.id,
+    p10,
+    ukeyCntName,
+    ukeyNum: ukeySocket.deviceId,
+}).silence().then(() => applyCallback());
+\end{JavaScript}
+
+该接口会向 CA 机构申请证书，因此响应较慢。
+
+申请证书过程可以中断，关闭弹窗后，后端仍然处于申请证书的过程中，此时退出界面没有影响。如果已申请完成，再次进入会显示烧制界面。
+
+\subsection{证书写入}
+
+证书申请完成后会自动进入写入流程，如果申请过程中退出了界面也可通过订单详情界面的写入证书按钮进入写入流程。
+
+写入过程首先会调用后端的写入接口:
+
+\begin{JavaScript}
+// 接口路径: /cert/order/ukey/write
+Apis.CertApply.ukeyWriteCert(orderDetail.certOrder.id, ukeySocket.deviceId)
+    .then((resultWrite) => {
+    // 可以写进ukey了
+    if (resultWrite.pubCert || resultWrite.doubleCertData) {
+        MessageBox.close();
+        Message.success('申请成功');
+        // 开始写入驱动
+        writeCertToUkey({ ukeySocket, resultWrite, pin, orderDetail, createElement, callback: writeCallback });
+    }
+})
+.catch(() => {
+    clearInterval(writeTime);
+});
+\end{JavaScript}
+
+通过该接口获取下载的证书，并尝试写入驱动，此时界面给出 \textit{正在将证书写入UKey} 弹窗，同时调用驱动的写入证书方法:
+
+根据证书算法类型与是否为双证调用如下任一方法将证书写入 Ukey:
+
+\begin{JavaScript}
+// RSA 双证，对应 C++ 方法: importRSADoubleCertOnPrivate 
+ukeySocket.importRSADoubleCert(JSON.parse(resultWrite.doubleCertData))
+// RSA 单证，对应 C++ 方法: importRSACert 
+ukeySocket.importRSACert({ data: resultWrite.pubCert, pin, ukeyCntName: '' })
+// SM2 双证，对应 C++ 方法: importSM2DoubleCert 
+ukeySocket.importSM2DoubleCert(params)
+// SM2 单证，对应 C++ 方法: importSM2Cert 
+ukeySocket.importSM2Cert({ data: resultWrite.pubCert, pin })
+\end{JavaScript}
+
+证书写入完成后，如果存在图片(章面/签名)，再调用如下方法写入图片:
+
+\begin{JavaScript}
+// 对应 C++ 方法: importSealWithName 
+ukeySocket.setUkeySealImg({ fileName: imgName, data: base64SealImg })
+\end{JavaScript}
+
+以上两个写入步骤均成功执行后，调用后端的成功写入证书方法:
+
+\begin{JavaScript}
+// 接口路径: /cert/order/ukey/writesuccess
+Apis.CertApply.ukeyWriteSuccess(orderDetail.certOrder.id);
+\end{JavaScript}
+
+此时写入过程结束，系统界面将刷新。
+
+写入过程是不可以中断的，以上三个过程如果仅执行部分，会导致后端数据错误。如果任一过程失败，ukey 将被清空，回到写入前的状态。
+
+部分 CA 机构(辽宁 CA)的下载证书接口是异步执行的，因此前端会轮询调用接口。
+
+\subsection*{详细逻辑图}
+
+烧制 Ukey 的详细逻辑如图\ref{fig:烧制Ukey详细逻辑图}所示(红色为不可中断过程，蓝色可中断):
+
+\begin{figure}[H]
+    \small
+    \centering
+    \begin{tikzpicture}[font=\small, align=center]
+      \node (start) at (0,0) {开始申请};
+      \node [color=red] (init) at (3,0) {初始化 Ukey\\\footnotesize{(驱动-后端)}};
+      \node [color=gray, font=\tiny] (init1) at (3,-1) {驱动: 清空Ukey};
+      \node [color=gray, font=\tiny] (init2) at (3,-1.625) {驱动: 初始化Pin码};
+      \node [color=gray, font=\tiny] (init3) at (3,-2.25) {后端: 初始化Ukey};
+      \node [color=blue] (apply) at (6,0) {证书申请\\\footnotesize{(后端)}};
+      \node [color=gray, font=\tiny] (apply1) at (6,-1) {后端: 申请证书};
+      \node [color=red] (write) at (9,0) {写入证书\\\footnotesize{(后端-驱动-后端)}};
+      \node [color=gray, font=\tiny] (write1) at (9,-1) {后端: 下载证书};
+      \node [color=gray, font=\tiny] (write2) at (9,-1.625) {驱动: 写入证书};
+      \node [color=gray, font=\tiny] (write2-1) at (11,-1.625) {驱动: 写入图片};
+      \node [color=gray, font=\tiny] (write3) at (9,-2.25) {后端: 成功写入};
+      \node (finish) at (12,0) {完成};
+      \draw [-Stealth] (-1.5,0) -- (start);
+      \draw [-Stealth, dashed] (start) -- ++(0,1) -- (9,1) node [midway, above, font=\scriptsize] {已申请过，直接走写入流程} -- (write);
+      \draw [-Stealth] (start) -- (init);
+      \draw [color=gray] (init) -- (init1) -- (init2) -- (init3);
+      \draw [-Stealth] (init) -- (apply);
+      \draw [color=gray] (apply) -- (apply1);
+      \draw [-Stealth] (apply) -- (write);
+      \draw [color=gray] (write) -- (write1) -- (write2) -- (write3);
+      \draw [color=gray, dotted] (write2) -- (write2-1);
+      \draw [-Stealth] (write) -- (finish);
+    \end{tikzpicture}
+    \caption{烧制Ukey详细逻辑图}
+    \label{fig:烧制Ukey详细逻辑图}
+\end{figure}
+
+\newpage

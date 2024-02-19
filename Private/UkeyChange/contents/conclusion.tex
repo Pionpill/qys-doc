@@ -1,0 +1,73 @@
+\section{整体流程图}
+
+\begin{figure}[H]
+    \small
+    \centering
+    \begin{tikzpicture}[font=\small, align=center]
+      \begin{scope}[yshift=0.5cm]
+        \node [font=\footnotesize] (apply1) at (-2,1) {跳转申请};
+        \node [font=\footnotesize] (apply2) at (0,1) {常规申请};
+        \node [font=\footnotesize] (apply3) at (2,1) {开放平台};
+        \node (order) at (0,0) {订单界面};
+        \node (ukey) at (0,-1.5) {选中Ukey};
+        \node (select) at (-1,-2.5) {选择Ukey};
+        \node (select-hint) [color=gray, font=\tiny, draw, dashed] at (-4,-2.5) {仅限当前私有化系统的 ukey\\可获取详情信息};
+        \node (insert) at (1,-2.5) {插入Ukey};
+        \node (insert-hint) [color=gray, font=\tiny, draw, dashed] at (4,-2.5) {契约锁 ukey\\支持其他系统ukey变更\\仅PC支持};
+        \node (info) at (0,-3.5) {填写信息};
+        \node (commit) at (0,-5) {提交订单};
+        \draw [-Stealth] (apply1) -- (order);
+        \draw [-Stealth] (apply2) -- (order);
+        \draw [-Stealth] (apply3) -- (order);
+        \draw [dashed] (apply1) to[out=-90, in=180] (0, -0.75) node [midway, left, xshift=-2cm, font=\tiny] {路由参数限制};
+        \draw [dashed] (apply3) to[out=-90, in=0] (0, -0.75) node [midway, right, xshift=2cm, font=\tiny] {路由，viewToken限制};
+        \draw [-Stealth] (order) -- (ukey);
+        \draw [-Stealth] (ukey) -- (select);
+        \draw [-Stealth] (ukey) -- (insert);
+        \draw [-Stealth] (select) -- (info);
+        \draw [-Stealth] (insert) -- (info);
+        \draw [dotted] (select) -- (select-hint);
+        \draw [dotted] (insert) -- (insert-hint);
+        \draw [-Stealth, font=\tiny] (info) -- (commit) node [midway, left] {如果有章面，确认变更};
+        \draw [-Stealth, font=\tiny] (info) -- (commit) node [midway, right] {确认价格};
+      \end{scope}
+
+      \node (unAuth) at (-1.5, -5.5) {未认证};
+      \node (auth) at (-4, -5.5) {主体认证};
+      \draw [-Stealth, dashed] (0, -5.5) -- (unAuth) -- (auth);
+      \node (unLimit) at (-1.5, -6.5) {非本人};
+      \node (limit) at (-4, -6.5) {主体授权};
+      \draw [-Stealth, dashed] (0, -6.5) -- (unLimit) -- (limit);
+      \node (qysPay) at (4, -6) {契约锁支付};
+      \draw [-Stealth] (commit) |- (qysPay);
+
+      \begin{scope}[yshift=-7.5cm]
+        \node (pay) at (0, 0) {平台方支付};
+        \node (start) at (0, -1) {烧制证书};
+        \node [color=red] (init) at (0, -2) {初始化Ukey};
+        \node [color=gray, font=\tiny] (init1) at (-2.5, -2) {清空Ukey\\初始化Pin码\\{(驱动)}};
+        \node [color=gray, font=\tiny] (init2) at (-4.5, -2) {初始化Ukey\\{(后端)}};
+        \node [color=blue] (apply) at (0, -3) {申请证书};
+        \node [color=gray, font=\tiny] (apply1) at (-2.5, -3) {申请证书\\{(后端)}};
+        \node [color=red] (write) at (0, -4) {写入证书};
+        \node [color=gray, font=\tiny] (write1) at (-2.5, -4) {下载证书\\{(后端)}};
+        \node [color=gray, font=\tiny] (write2) at (-4, -4) {写入证书\\写入图片\\{(驱动)}};
+        \node [color=gray, font=\tiny] (write3) at (-5.5, -4) {成功写入\\{(后端)}};
+        \node (finish) at (0, -5.5) {订单完成};
+        \draw [-Stealth] (commit) -- (pay);
+        \draw [-Stealth] (pay) -- (start);
+        \draw [-Stealth] (start) -- (init);
+        \draw [-Stealth, dashed, color=gray] (init) -- (init1) -- (init2);
+        \draw [-Stealth] (init) -- (apply);
+        \draw [-Stealth, dashed, color=gray] (apply) -- (apply1);
+        \draw [-Stealth] (apply) -- (write);
+        \draw [-Stealth, dashed, color=gray] (write) -- (write1) -- (write2) -- (write3);
+        \draw [-Stealth, dashed] (start) -- ++ (1.5,0) |- (write) node [pos=0.25, right, font=\tiny] {已申请};
+      \end{scope}
+
+      \node (invoice) at (4, -10) {开票};
+      \draw [-Stealth] (qysPay) -- (invoice);
+      \draw [-Stealth] (invoice) |- (finish);
+      \draw [-Stealth] (write) -- (finish);
+    \end{tikzpicture}
+\end{figure}

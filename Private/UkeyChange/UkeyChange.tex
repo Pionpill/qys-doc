@@ -1,0 +1,64 @@
+\documentclass{../../latex/PionpillNote-article}
+\import{../../latex}{style.tex}
+\fancyfoot[C]{\small{标准包Ukey变更业务文档}}
+\pagenumbering{roman}
+
+\title{\textbf{标准包 Ukey变更 业务文档}}
+\author{
+    吴鼎
+}
+
+\date{\today}
+
+\begin{document}
+
+\pagestyle{plain}
+\maketitle
+
+\noindent\textbf{需求概述：}
+
+\begin{itemize}
+    \item 需求编号: \href{https://jira.qiyuesuo.me/browse/PRIV-4388?goToView=1}{PRIV-4388}
+    \item 影响项目: 标准包前台(PC，H5)，标准包后台
+    \item 上线版本: 4.3.8
+    \item 上线时间: 2024-01-11
+    \item 相关人员
+    \begin{itemize}
+        \item 产品: 周琪
+        \item 前端: 吴鼎(PC)，李潇宇(H5)，王可
+        \item 后端: 李新田，徐家豪，袁帅(Q上海)，詹善明
+        \item 测试: 刘静(Q上海)，苗含玉
+    \end{itemize}
+\end{itemize}
+
+\noindent\textbf{修改记录：}
+
+\begin{table}[H]
+  \small
+  \centering
+  \setlength{\tabcolsep}{4mm}
+  \begin{tabular}{c|c|c|c|c}
+    \toprule
+    \textbf{时间} & \textbf{需求号} & \textbf{版本} & \textbf{修改人} & \textbf{更新内容} \\
+    \midrule
+    2024-02-05 & PRIV-4388 & 4.3.8 & 吴鼎 & 需求上线，首次编写业务文档 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\newpage
+
+\tableofcontents
+
+\newpage
+
+\setcounter{page}{1} 
+\pagestyle{fancy}
+\pagenumbering{arabic}
+
+\import{contents}{introduction.tex}
+\import{contents}{commit.tex}
+\import{contents}{write.tex}
+\import{contents}{conclusion.tex}
+
+\end{document}

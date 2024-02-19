@@ -1,0 +1,57 @@
+\section{功能概述}
+
+标准包前/后台新增 Ukey变更订单类型，支持用户变更当前Ukey内的证书，使用场景包括:
+\begin{itemize}
+    \item 单位名称发生变更后，客户希望将原ukey进行变更，不浪费硬件设备
+    \item 证书不满足要求，需要重新烧制
+    \item 个人证书需要更换成单位证书
+\end{itemize}
+
+整体流程如图\ref{fig:Ukey 变更整体流程}:
+\begin{figure}[H]
+  \small
+  \centering
+  \begin{tikzpicture}[font=\small, align=center]
+    \node(pc) at (-1,0.75) {PC};
+    \node(h5) at (-1,-0.75) {H5};
+    \node(commit) [color=red!80!black] at (1,0) {提交订单};
+    \node(auth) at (4,0) {认证/授权};
+    \node(pay) at (7,0) {费用支付\\\footnotesize{(契约锁/平台方)}};
+    \node(qysWrite) at (10.5,0.75) {契约锁烧制\\\footnotesize{(公有云)}};
+    \node(priWrite) [color=red!80!black] at (10.5,-0.75) {平台方烧制\\\footnotesize{(前/后台)}};
+    \node(invoice) at (13,0.75) {开票};
+    \node(finish) at (13,-0.75) {完成};
+    \draw [-Stealth] (pc) -- (commit);
+    \draw [-Stealth] (h5) -- (commit);
+    \draw [-Stealth] (commit) -- (auth) node [midway, above] {\footnotesize{仅 PC}};
+    \draw [-Stealth] (auth) -- (pay);
+    \draw [-Stealth] (pay) -- (qysWrite);
+    \draw [-Stealth] (qysWrite) -- (invoice);
+    \draw [-Stealth] (pay) -- (priWrite);
+    \draw [-Stealth] (priWrite) -- (finish);
+  \end{tikzpicture}
+  \caption{Ukey 变更整体流程}
+  \label{fig:Ukey 变更整体流程}
+\end{figure}
+
+上述几个步骤的功能简要概述为:
+\begin{itemize}
+    \item 后台配置: 进入标准包后台: 数字证书/Ukey变更进行参数配置，如果前台登陆的账号不满足配置条件则不显示 Ukey 变更入口。
+    \item 提交订单: 用户进入 Ukey 变更界面后选择需要变更的 Ukey(PC 可以选中插入的 Ukey)，填写新证书信息以及章面信息、，然后提交订单
+    \item 认证授权: 该步骤可跳过。
+    \begin{itemize}
+        \item 如果申请主体未认证，则需完成认证流程
+        \item 如果替他人申请证书，则需申请主体登录后授权
+    \end{itemize}
+    \item 费用支付: 在后台可配置两种费用支付方式:
+    \begin{itemize}
+        \item 支付给契约锁: 走公有云烧制流程
+        \item 支付给平台方: 走私有云烧制流程，在私有云前后台均可烧制
+    \end{itemize}
+    \item 烧制: 本次开发为平台方烧制，前后台均可走烧制流程，先申请证书，然后(在插入 Ukey 情况下)将证书写入 Ukey
+    \item 开票: 仅在契约锁烧制的 Ukey 可开票
+\end{itemize}
+
+其中红色部分: 提交订单，平台方烧制为本次主要开发流程。
+
+\newpage
