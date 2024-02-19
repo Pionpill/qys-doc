@@ -4,15 +4,15 @@
 
 这里包含了我所有主要负责功能的业务文档，文件结构为:
 
-```json
-|- latex // latex 的统一样式文件
-|- Private // 标准包需求 
+```tex
+|- latex % latex 的统一样式文件
+|- Private % 标准包需求 
     |- Doc1
-        |- Doc1.tex // latex 入口文件
-        |- Doc1.pdf // 编译后的 pdf 文件
-        |- contents // 每小节内容
-        |- figures // tikz 图片
-|- Web  // 公有云需求
+        |- Doc1.tex % latex 入口文件
+        |- Doc1.pdf % 编译后的 pdf 文件
+        |- contents % 每小节内容
+        |- figures % tikz 图片
+|- Web  % 公有云需求
     |- Doc2
 ```
 
@@ -38,6 +38,7 @@
 |--|--|--|
 |🔖|:bookmark:|首次发布业务文档|
 |📑|:pencil:|更新已有业务文档|
+|✏|:pencil2:|小范围更新，不提交pdf|
 |🐛|:bug:|修复业务文档的问题|
 |🔧|:wrench:|更新配置文件(一般为latex配置)|
 
